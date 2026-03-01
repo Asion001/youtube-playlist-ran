@@ -3,4 +3,4 @@ compatibility_date = "2026-03-01"
 pages_build_output_dir = "dist"
 
 [vars]
-ALLOWED_ORIGINS = "https://yt-comparison.asion.dev,https://youtube-playlist-ran.pages.dev"
+ALLOWED_ORIGINS = "https://yt-rank.asion.dev,https://youtube-playlist-ran.pages.dev"
