@@ -49,12 +49,23 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+      - name: Include Pages Functions in deploy artifact
+        run: |
+          if [ -d functions ]; then
+            mkdir -p dist/functions
+            cp -R functions/. dist/functions/
+          fi
+
+      - name: Deploy to Cloudflare Pages (Wrangler)
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: youtube-playlist-ran
-          directory: dist
-          functionsDirectory: functions
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || github.event.repository.name }}
+
+      - name: Deploy to Cloudflare Workers (Wrangler)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config wrangler.worker.toml
