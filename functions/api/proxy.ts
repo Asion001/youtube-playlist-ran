@@ -2,7 +2,7 @@ export const onRequest = async ({ request }: { request: Request }) => {
   const { searchParams } = new URL(request.url)
   const playlistId = searchParams.get('playlistId')
 
-  if (!playlistId || !/^[a-zA-Z0-9_-]{5,}$/.test(playlistId)) {
+  if (!playlistId || !/^[a-zA-Z0-9_-]{10,128}$/.test(playlistId)) {
     return new Response(JSON.stringify({ error: 'Invalid playlistId' }), {
       status: 400,
       headers: { 'content-type': 'application/json; charset=utf-8' },
