@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useId } from 'react'
 
 declare global {
   interface Window {
@@ -13,18 +13,30 @@ interface YouTubePlayerProps {
 }
 
 export function YouTubePlayer({ videoId, className = '' }: YouTubePlayerProps) {
-  const playerRef = useRef<HTMLDivElement>(null)
+  const uniqueId = useId()
+  const containerRef = useRef<HTMLDivElement>(null)
   const ytPlayerRef = useRef<any>(null)
+  const playerIdRef = useRef<string>(`yt-player-${uniqueId.replace(/:/g, '-')}`)
 
   useEffect(() => {
     const initPlayer = () => {
-      if (!playerRef.current) return
+      if (!containerRef.current) return
 
       if (ytPlayerRef.current) {
-        ytPlayerRef.current.destroy()
+        try {
+          ytPlayerRef.current.destroy()
+        } catch (e) {
+          console.warn('Error destroying player:', e)
+        }
+        ytPlayerRef.current = null
       }
 
-      ytPlayerRef.current = new window.YT.Player(playerRef.current, {
+      const playerDiv = document.createElement('div')
+      playerDiv.id = playerIdRef.current
+      containerRef.current.innerHTML = ''
+      containerRef.current.appendChild(playerDiv)
+
+      ytPlayerRef.current = new window.YT.Player(playerIdRef.current, {
         videoId: videoId,
         width: '100%',
         height: '100%',
@@ -35,6 +47,7 @@ export function YouTubePlayer({ videoId, className = '' }: YouTubePlayerProps) {
           showinfo: 0,
           fs: 1,
           origin: window.location.origin,
+          enablejsapi: 1,
         },
         events: {
           onError: (event: any) => {
@@ -57,17 +70,26 @@ export function YouTubePlayer({ videoId, className = '' }: YouTubePlayerProps) {
       return () => {
         clearInterval(checkYT)
         if (ytPlayerRef.current) {
-          ytPlayerRef.current.destroy()
+          try {
+            ytPlayerRef.current.destroy()
+          } catch (e) {
+            console.warn('Error destroying player on cleanup:', e)
+          }
         }
       }
     }
 
     return () => {
       if (ytPlayerRef.current) {
-        ytPlayerRef.current.destroy()
+        try {
+          ytPlayerRef.current.destroy()
+        } catch (e) {
+          console.warn('Error destroying player on cleanup:', e)
+        }
+        ytPlayerRef.current = null
       }
     }
   }, [videoId])
 
-  return <div ref={playerRef} className={className} />
+  return <div ref={containerRef} className={className} />
 }
