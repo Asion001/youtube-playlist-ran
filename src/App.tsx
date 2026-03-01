@@ -143,7 +143,7 @@ function App() {
           </p>
         </header>
 
-        <div className="max-w-4xl mx-auto">
+        <div className="mx-auto" style={{ maxWidth: state === 'comparing' ? 'none' : '56rem' }}>
           {state === 'input' && (
             <div className="space-y-6">
               <div className="space-y-4">
