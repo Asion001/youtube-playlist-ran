@@ -18,7 +18,9 @@ export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> 
   try {
     const playlistUrl = `https://www.youtube.com/playlist?list=${playlistId}`
     
-    const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(playlistUrl)}`)
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(playlistUrl)}`
+    
+    const response = await fetch(proxyUrl)
     
     if (!response.ok) {
       throw new Error('Failed to fetch playlist')
