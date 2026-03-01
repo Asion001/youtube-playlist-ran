@@ -15,27 +15,39 @@ export function extractPlaylistId(url: string): string | null {
 }
 
 export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> {
-  const prompt = spark.llmPrompt`You are a YouTube API simulator. Generate a realistic playlist with 8-12 videos based on this playlist ID: ${playlistId}.
-
-Return a JSON object with a "videos" property containing an array of video objects. Each video should have:
-- id: unique video ID (11 chars, alphanumeric)
-- title: realistic video title (relevant to a theme you infer from the ID, or make it a generic educational/entertainment playlist)
-- thumbnail: use "https://i.ytimg.com/vi/{VIDEO_ID}/mqdefault.jpg" format
-- score: always start at 1000
-
-Make the videos feel like a real playlist - related theme, varied but coherent titles.
-
-Return ONLY valid JSON in this exact format:
-{
-  "videos": [
-    {"id": "dQw4w9WgXcQ", "title": "Example Video Title", "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg", "score": 1000}
-  ]
-}`
-
+  const apiKey = 'AIzaSyC8Y8v2LwJ0LdVkLvOCh-3GXR-p--0_6_Q'
+  const maxResults = 50
+  
   try {
-    const response = await spark.llm(prompt, 'gpt-4o-mini', true)
-    const data = JSON.parse(response)
-    return data.videos
+    let allVideos: Video[] = []
+    let nextPageToken = ''
+    
+    do {
+      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=${maxResults}&key=${apiKey}${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`
+      
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch playlist')
+      }
+      
+      const data = await response.json()
+      
+      const videos: Video[] = data.items
+        .filter((item: any) => item.snippet.title !== 'Private video' && item.snippet.title !== 'Deleted video')
+        .map((item: any) => ({
+          id: item.snippet.resourceId.videoId,
+          title: item.snippet.title,
+          thumbnail: item.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${item.snippet.resourceId.videoId}/mqdefault.jpg`,
+          score: 1000
+        }))
+      
+      allVideos = [...allVideos, ...videos]
+      nextPageToken = data.nextPageToken || ''
+      
+    } while (nextPageToken)
+    
+    return allVideos
   } catch (error) {
     throw new Error('Failed to fetch playlist videos')
   }
