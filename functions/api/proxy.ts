@@ -1,4 +1,46 @@
-export const onRequest = async ({ request }: { request: Request }) => {
+type Env = {
+  ALLOWED_ORIGINS?: string
+}
+
+const getAllowedOrigins = (env: Env): Set<string> => {
+  return new Set(
+    (env.ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  )
+}
+
+const extractOrigin = (value: string | null): string | null => {
+  if (!value) return null
+  try {
+    return new URL(value).origin
+  } catch {
+    return null
+  }
+}
+
+export const onRequest = async ({ request, env }: { request: Request; env: Env }) => {
+  if (request.method !== 'GET') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    })
+  }
+
+  const allowedOrigins = getAllowedOrigins(env)
+  const originHeader = extractOrigin(request.headers.get('origin'))
+  const refererOrigin = extractOrigin(request.headers.get('referer'))
+  const sourceOrigin = originHeader ?? refererOrigin
+  const fetchSite = request.headers.get('sec-fetch-site')
+
+  if (!sourceOrigin || !allowedOrigins.has(sourceOrigin) || (fetchSite !== 'same-origin' && fetchSite !== 'same-site')) {
+    return new Response(JSON.stringify({ error: 'Forbidden origin' }), {
+      status: 403,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    })
+  }
+
   const { searchParams } = new URL(request.url)
   const playlistId = searchParams.get('playlistId')
 

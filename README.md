@@ -20,6 +20,7 @@ npm run build
 Playlist HTML is fetched through a Cloudflare Pages Function at:
 
 - `functions/api/proxy.ts`
+- Access is restricted to configured page origins via `ALLOWED_ORIGINS`.
 
 The frontend uses `/api/proxy?playlistId=...` by default, and you can override it with:
 
@@ -38,6 +39,7 @@ This repository includes:
 2. In GitHub repository secrets, add:
    - `CLOUDFLARE_API_TOKEN` (Pages edit permission)
    - `CLOUDFLARE_ACCOUNT_ID`
+3. Set `ALLOWED_ORIGINS` in `wrangler.toml` to your production page origins.
 
 ### CI/CD behavior
 
