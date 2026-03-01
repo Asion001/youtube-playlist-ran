@@ -28,9 +28,8 @@ export default {
     const originHeader = extractOrigin(request.headers.get('origin'))
     const refererOrigin = extractOrigin(request.headers.get('referer'))
     const sourceOrigin = originHeader ?? refererOrigin
-    const fetchSite = request.headers.get('sec-fetch-site')
 
-    if (!sourceOrigin || !allowedOrigins.has(sourceOrigin) || (fetchSite !== 'same-origin' && fetchSite !== 'same-site')) {
+    if (!sourceOrigin || !allowedOrigins.has(sourceOrigin)) {
       return new Response(JSON.stringify({ error: 'Forbidden origin' }), {
         status: 403,
         headers: { 'content-type': 'application/json; charset=utf-8' },
