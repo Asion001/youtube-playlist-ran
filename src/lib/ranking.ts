@@ -1,11 +1,36 @@
 import { Video } from "./types";
 
 export function extractPlaylistId(url: string): string | null {
-  const patterns = [/[?&]list=([^&]+)/, /youtube\.com\/playlist\?list=([^&]+)/];
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) {
+    return null;
+  }
+
+  const normalizedUrl = /^(https?:)?\/\//i.test(trimmedUrl)
+    ? trimmedUrl
+    : `https://${trimmedUrl}`;
+
+  try {
+    const parsedUrl = new URL(normalizedUrl);
+    const listParam = parsedUrl.searchParams.get("list");
+
+    if (listParam && /^[a-zA-Z0-9_-]{10,128}$/.test(listParam)) {
+      return listParam;
+    }
+  } catch {
+    // Fallback to regex parsing below for non-standard input
+  }
+
+  const patterns = [
+    /[?&]list=([a-zA-Z0-9_-]{10,128})/i,
+    /\blist=([a-zA-Z0-9_-]{10,128})/i,
+  ];
 
   for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
+    const match = trimmedUrl.match(pattern);
+    if (match) {
+      return match[1];
+    }
   }
 
   return null;
