@@ -52,6 +52,16 @@ function extractInitialData(html: string): any | null {
   }
 }
 
+function extractInnertubeApiKey(html: string): string | null {
+  const keyMatch = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/);
+  return keyMatch?.[1] ?? null;
+}
+
+function extractClientVersion(html: string): string {
+  const versionMatch = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/);
+  return versionMatch?.[1] ?? "2.20240224.00.00";
+}
+
 function getPlaylistItemsFromBrowseData(data: any): any[] {
   const initialItems =
     data?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer
@@ -61,7 +71,73 @@ function getPlaylistItemsFromBrowseData(data: any): any[] {
     return initialItems;
   }
 
+  const actionItems = data?.onResponseReceivedActions?.flatMap(
+    (action: any) =>
+      action?.appendContinuationItemsAction?.continuationItems ?? [],
+  );
+
+  if (Array.isArray(actionItems) && actionItems.length > 0) {
+    return actionItems;
+  }
+
+  const endpointItems = data?.onResponseReceivedEndpoints?.flatMap(
+    (endpoint: any) =>
+      endpoint?.appendContinuationItemsAction?.continuationItems ?? [],
+  );
+
+  if (Array.isArray(endpointItems) && endpointItems.length > 0) {
+    return endpointItems;
+  }
+
+  const continuationItems =
+    data?.continuationContents?.playlistVideoListContinuation?.contents;
+
+  if (Array.isArray(continuationItems)) {
+    return continuationItems;
+  }
+
   return [];
+}
+
+function getContinuationTokenFromItems(items: any[]): string | null {
+  for (let index = items.length - 1; index >= 0; index--) {
+    const item = items[index];
+    const token =
+      item?.continuationItemRenderer?.continuationEndpoint?.continuationCommand
+        ?.token ||
+      item?.continuationItemRenderer?.continuationEndpoint?.continuationCommand
+        ?.continuation ||
+      item?.continuationItemRenderer?.continuationEndpoint?.nextContinuationData
+        ?.continuation;
+
+    if (typeof token === "string" && token.length > 0) {
+      return token;
+    }
+  }
+
+  return null;
+}
+
+function getContinuationTokenFromData(data: any, items: any[]): string | null {
+  const tokenFromItems = getContinuationTokenFromItems(items);
+  if (tokenFromItems) {
+    return tokenFromItems;
+  }
+
+  const tokenFromContinuationContents =
+    data?.continuationContents?.playlistVideoListContinuation
+      ?.continuations?.[0]?.nextContinuationData?.continuation ||
+    data?.continuationContents?.playlistVideoListContinuation
+      ?.continuations?.[0]?.reloadContinuationData?.continuation;
+
+  if (
+    typeof tokenFromContinuationContents === "string" &&
+    tokenFromContinuationContents.length > 0
+  ) {
+    return tokenFromContinuationContents;
+  }
+
+  return null;
 }
 
 function addVideosFromItems(items: any[], videoMap: Map<string, Video>) {
@@ -112,10 +188,67 @@ export async function fetchPlaylistVideos(
     const videoMap = new Map<string, Video>();
 
     const initialData = extractInitialData(html);
+    const apiKey = extractInnertubeApiKey(html);
+    const clientVersion = extractClientVersion(html);
 
     if (initialData) {
       const initialItems = getPlaylistItemsFromBrowseData(initialData);
       addVideosFromItems(initialItems, videoMap);
+
+      let continuationToken = getContinuationTokenFromData(
+        initialData,
+        initialItems,
+      );
+      const maxContinuationRequests = 40;
+      let continuationRequests = 0;
+
+      while (
+        continuationToken &&
+        apiKey &&
+        continuationRequests < maxContinuationRequests
+      ) {
+        continuationRequests++;
+
+        try {
+          const continuationUrl = `${proxyBaseUrl}?continuation=${encodeURIComponent(continuationToken)}&apiKey=${encodeURIComponent(apiKey)}&clientVersion=${encodeURIComponent(clientVersion)}`;
+          const continuationResponse = await fetch(continuationUrl, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+          });
+
+          if (!continuationResponse.ok) {
+            break;
+          }
+
+          const continuationData = await continuationResponse.json();
+          const continuationItems =
+            getPlaylistItemsFromBrowseData(continuationData);
+
+          if (
+            !Array.isArray(continuationItems) ||
+            continuationItems.length === 0
+          ) {
+            break;
+          }
+
+          addVideosFromItems(continuationItems, videoMap);
+
+          const nextToken = getContinuationTokenFromData(
+            continuationData,
+            continuationItems,
+          );
+
+          if (!nextToken || nextToken === continuationToken) {
+            break;
+          }
+
+          continuationToken = nextToken;
+        } catch {
+          break;
+        }
+      }
     }
 
     if (videoMap.size === 0) {
