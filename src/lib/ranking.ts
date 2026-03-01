@@ -15,39 +15,50 @@ export function extractPlaylistId(url: string): string | null {
 }
 
 export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> {
-  const apiKey = 'AIzaSyC8Y8v2LwJ0LdVkLvOCh-3GXR-p--0_6_Q'
-  const maxResults = 50
-  
   try {
-    let allVideos: Video[] = []
-    let nextPageToken = ''
+    const playlistUrl = `https://www.youtube.com/playlist?list=${playlistId}`
     
-    do {
-      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=${maxResults}&key=${apiKey}${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`
-      
-      const response = await fetch(url)
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch playlist')
+    const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(playlistUrl)}`)
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch playlist')
+    }
+    
+    const html = await response.text()
+    
+    const videos: Video[] = []
+    const videoIdPattern = /"videoId":"([^"]+)"/g
+    const titlePattern = /"title":{"runs":\[{"text":"([^"]+)"/g
+    
+    const videoIds: string[] = []
+    const titles: string[] = []
+    
+    let match
+    while ((match = videoIdPattern.exec(html)) !== null) {
+      const videoId = match[1]
+      if (videoId.length === 11 && !videoIds.includes(videoId)) {
+        videoIds.push(videoId)
       }
-      
-      const data = await response.json()
-      
-      const videos: Video[] = data.items
-        .filter((item: any) => item.snippet.title !== 'Private video' && item.snippet.title !== 'Deleted video')
-        .map((item: any) => ({
-          id: item.snippet.resourceId.videoId,
-          title: item.snippet.title,
-          thumbnail: item.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${item.snippet.resourceId.videoId}/mqdefault.jpg`,
-          score: 1000
-        }))
-      
-      allVideos = [...allVideos, ...videos]
-      nextPageToken = data.nextPageToken || ''
-      
-    } while (nextPageToken)
+    }
     
-    return allVideos
+    while ((match = titlePattern.exec(html)) !== null) {
+      titles.push(match[1])
+    }
+    
+    const minLength = Math.min(videoIds.length, titles.length)
+    
+    for (let i = 0; i < minLength; i++) {
+      videos.push({
+        id: videoIds[i],
+        title: titles[i],
+        thumbnail: `https://i.ytimg.com/vi/${videoIds[i]}/mqdefault.jpg`,
+        score: 1000
+      })
+    }
+    
+    return videos.filter((video, index, self) => 
+      index === self.findIndex((v) => v.id === video.id)
+    )
   } catch (error) {
     throw new Error('Failed to fetch playlist videos')
   }
