@@ -101,22 +101,61 @@ export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> 
   }
 }
 
+const comparisonHistory = new Set<string>()
+
+function getPairKey(idA: string, idB: string): string {
+  return [idA, idB].sort().join('-')
+}
+
 export function calculateNextPair(videos: Video[]): [Video, Video] | null {
   if (videos.length < 2) return null
 
   const sortedVideos = [...videos].sort((a, b) => b.score - a.score)
   
-  const middleIndex = Math.floor(sortedVideos.length / 2)
-  const comparisonRange = Math.max(2, Math.floor(sortedVideos.length / 3))
+  const maxAttempts = videos.length * videos.length
+  let attempts = 0
   
-  let videoA = sortedVideos[Math.floor(Math.random() * comparisonRange)]
-  let videoB = sortedVideos[sortedVideos.length - 1 - Math.floor(Math.random() * comparisonRange)]
-  
-  if (videoA.id === videoB.id && sortedVideos.length > 1) {
-    videoB = sortedVideos[sortedVideos.length - 1 - comparisonRange]
+  while (attempts < maxAttempts) {
+    attempts++
+    
+    let indexA: number
+    let indexB: number
+    
+    const useAdjacentComparison = Math.random() < 0.5
+    
+    if (useAdjacentComparison) {
+      indexA = Math.floor(Math.random() * (sortedVideos.length - 1))
+      indexB = indexA + 1
+    } else {
+      indexA = Math.floor(Math.random() * sortedVideos.length)
+      indexB = Math.floor(Math.random() * sortedVideos.length)
+      
+      while (indexB === indexA) {
+        indexB = Math.floor(Math.random() * sortedVideos.length)
+      }
+    }
+    
+    const videoA = sortedVideos[indexA]
+    const videoB = sortedVideos[indexB]
+    const pairKey = getPairKey(videoA.id, videoB.id)
+    
+    if (!comparisonHistory.has(pairKey)) {
+      comparisonHistory.add(pairKey)
+      return [videoA, videoB]
+    }
   }
+  
+  const randomA = Math.floor(Math.random() * sortedVideos.length)
+  let randomB = Math.floor(Math.random() * sortedVideos.length)
+  while (randomB === randomA) {
+    randomB = Math.floor(Math.random() * sortedVideos.length)
+  }
+  
+  return [sortedVideos[randomA], sortedVideos[randomB]]
+}
 
-  return [videoA, videoB]
+export function resetComparisonHistory(): void {
+  comparisonHistory.clear()
 }
 
 export function updateScores(

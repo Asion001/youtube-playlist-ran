@@ -9,6 +9,7 @@ import {
   calculateMinimumComparisons,
   getRankedVideos,
   shuffleArray,
+  resetComparisonHistory,
 } from '@/lib/ranking'
 import { VideoCard } from '@/components/VideoCard'
 import { ComparisonProgress } from '@/components/ComparisonProgress'
@@ -73,6 +74,7 @@ function App() {
         toast.success(`Loaded and shuffled ${videosToRank.length} videos!`)
       }
 
+      resetComparisonHistory()
       setVideos(videosToRank)
       setComparisonCount(0)
       setState('comparing')
@@ -117,6 +119,7 @@ function App() {
   }
 
   const handleReset = () => {
+    resetComparisonHistory()
     setState('input')
     setPlaylistUrl('')
     setVideoLimit('')
