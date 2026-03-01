@@ -21,7 +21,7 @@ export function RankingResults({ videos }: RankingResultsProps) {
         </p>
       </div>
 
-      <ScrollArea className="h-[600px] pr-4">
+      <ScrollArea className="h-[400px] pr-4">
         <div className="space-y-3">
           {videos.map((video, index) => (
             <motion.div

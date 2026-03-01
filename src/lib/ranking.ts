@@ -49,43 +49,26 @@ export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> 
         continue
       }
       
-      const videos: Video[] = []
-      const videoIdPattern = /"videoId":"([^"]+)"/g
-      const titlePattern = /"title":{"runs":\[{"text":"([^"]+)"/g
+      const videoMap = new Map<string, Video>()
       
-      const videoIds: string[] = []
-      const titles: string[] = []
+      const playlistVideoPattern = /"videoId":"([a-zA-Z0-9_-]{11})"[^}]*?"title":\{"runs":\[\{"text":"([^"]+)"/g
       
       let match
-      while ((match = videoIdPattern.exec(html)) !== null) {
+      while ((match = playlistVideoPattern.exec(html)) !== null) {
         const videoId = match[1]
-        if (videoId.length === 11 && !videoIds.includes(videoId)) {
-          videoIds.push(videoId)
+        const title = match[2]
+        
+        if (!videoMap.has(videoId)) {
+          videoMap.set(videoId, {
+            id: videoId,
+            title: title,
+            thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+            score: 1000
+          })
         }
       }
       
-      while ((match = titlePattern.exec(html)) !== null) {
-        titles.push(match[1])
-      }
-      
-      const minLength = Math.min(videoIds.length, titles.length)
-      
-      if (minLength === 0) {
-        continue
-      }
-      
-      for (let i = 0; i < minLength; i++) {
-        videos.push({
-          id: videoIds[i],
-          title: titles[i],
-          thumbnail: `https://i.ytimg.com/vi/${videoIds[i]}/mqdefault.jpg`,
-          score: 1000
-        })
-      }
-      
-      const uniqueVideos = videos.filter((video, index, self) => 
-        index === self.findIndex((v) => v.id === video.id)
-      )
+      const uniqueVideos = Array.from(videoMap.values())
       
       if (uniqueVideos.length > 0) {
         return uniqueVideos
@@ -146,7 +129,7 @@ export function updateScores(
 }
 
 export function calculateMinimumComparisons(videoCount: number): number {
-  return Math.ceil(videoCount * Math.log2(videoCount))
+  return Math.ceil(videoCount * 1.5)
 }
 
 export function getRankedVideos(videos: Video[]): Video[] {
