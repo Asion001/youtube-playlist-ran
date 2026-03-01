@@ -15,73 +15,90 @@ export function extractPlaylistId(url: string): string | null {
 }
 
 export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> {
-  const proxies = [
-    (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  ]
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://www.youtube.com/playlist?list=${playlistId}`)}`
   
-  const playlistUrl = `https://www.youtube.com/playlist?list=${playlistId}`
-  
-  for (let i = 0; i < proxies.length; i++) {
-    try {
-      const proxyUrl = proxies[i](playlistUrl)
-      
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
-      
-      const response = await fetch(proxyUrl, { 
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      })
-      
-      clearTimeout(timeoutId)
-      
-      if (!response.ok) {
-        continue
-      }
-      
-      const html = await response.text()
-      
-      if (!html || html.length < 100) {
-        continue
-      }
-      
-      const videoMap = new Map<string, Video>()
-      
-      const playlistVideoPattern = /"videoId":"([a-zA-Z0-9_-]{11})"[^}]*?"title":\{"runs":\[\{"text":"([^"]+)"/g
-      
-      let match
-      while ((match = playlistVideoPattern.exec(html)) !== null) {
-        const videoId = match[1]
-        const title = match[2]
+  try {
+    const response = await fetch(proxyUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/html',
+      },
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch playlist`)
+    }
+    
+    const html = await response.text()
+    const videoMap = new Map<string, Video>()
+    
+    const jsonPattern = /var ytInitialData = ({.+?});/s
+    const jsonMatch = html.match(jsonPattern)
+    
+    if (jsonMatch && jsonMatch[1]) {
+      try {
+        const data = JSON.parse(jsonMatch[1])
         
-        if (!videoMap.has(videoId)) {
-          videoMap.set(videoId, {
-            id: videoId,
-            title: title,
-            thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
-            score: 1000
+        const contents = data?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer?.contents
+        
+        if (contents && Array.isArray(contents)) {
+          contents.forEach((item: any) => {
+            const videoRenderer = item?.playlistVideoRenderer
+            if (videoRenderer && videoRenderer.videoId) {
+              const videoId = videoRenderer.videoId
+              const title = videoRenderer.title?.runs?.[0]?.text || videoRenderer.title?.simpleText || 'Untitled Video'
+              
+              if (!videoMap.has(videoId)) {
+                videoMap.set(videoId, {
+                  id: videoId,
+                  title: title,
+                  thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+                  score: 1000
+                })
+              }
+            }
           })
         }
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError)
       }
-      
-      const uniqueVideos = Array.from(videoMap.values())
-      
-      if (uniqueVideos.length > 0) {
-        return uniqueVideos
-      }
-    } catch (error) {
-      if (i === proxies.length - 1) {
-        throw new Error('Failed to fetch playlist. All proxy attempts failed.')
-      }
-      continue
     }
+    
+    if (videoMap.size === 0) {
+      const patterns = [
+        /"videoId":"([a-zA-Z0-9_-]{11})"[^}]*?"title":\{"runs":\[\{"text":"([^"]+)"/g,
+        /"videoId":"([a-zA-Z0-9_-]{11})"[^}]*?"title":\{"simpleText":"([^"]+)"/g,
+      ]
+      
+      for (const pattern of patterns) {
+        let match
+        while ((match = pattern.exec(html)) !== null) {
+          const videoId = match[1]
+          const title = match[2]
+          
+          if (!videoMap.has(videoId) && videoId && title) {
+            videoMap.set(videoId, {
+              id: videoId,
+              title: title,
+              thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+              score: 1000
+            })
+          }
+        }
+      }
+    }
+    
+    const uniqueVideos = Array.from(videoMap.values())
+    
+    if (uniqueVideos.length === 0) {
+      throw new Error('No videos found in playlist. The playlist might be private or empty.')
+    }
+    
+    return uniqueVideos
+  } catch (error: any) {
+    console.error('Fetch error:', error)
+    throw new Error('Failed to load playlist. Please ensure the playlist is public and try again.')
   }
-  
-  throw new Error('Failed to fetch playlist videos')
 }
 
 export function calculateNextPair(videos: Video[]): [Video, Video] | null {

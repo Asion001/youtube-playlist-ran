@@ -202,6 +202,11 @@ function App() {
                   <li>Choose between pairs of videos (A or B)</li>
                   <li>After enough comparisons, see your final ranking</li>
                 </ol>
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-muted-foreground">
+                    <strong className="text-foreground">Note:</strong> This app fetches playlist data directly from YouTube without using an API. If the playlist doesn't load, ensure it's public and try again.
+                  </p>
+                </div>
               </div>
             </div>
           )}
