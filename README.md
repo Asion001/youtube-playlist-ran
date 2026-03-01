@@ -21,3 +21,8 @@ No problem! If you were just checking things out and don’t need to keep this c
 📄 License For Spark Template Resources 
 
 The Spark Template files and resources from GitHub are licensed under the terms of the MIT license, Copyright GitHub, Inc.
+
+## CI/CD
+
+- Pull requests to `main` run a production build in GitHub Actions.
+- Pushes to `main` build and deploy the `dist` output to GitHub Pages.
