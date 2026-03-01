@@ -1,81 +1,93 @@
 type Env = {
-  ALLOWED_ORIGINS?: string
-}
+  ALLOWED_ORIGINS?: string;
+};
+
+const USER_AGENT =
+  "Mozilla/5.0 (compatible; PlaylistRankerProxy/1.0; +https://github.com/Asion001/youtube-playlist-ran)";
 
 const getAllowedOrigins = (env: Env): Set<string> => {
   return new Set(
-    (env.ALLOWED_ORIGINS ?? '')
-      .split(',')
+    (env.ALLOWED_ORIGINS ?? "")
+      .split(",")
       .map((origin) => origin.trim())
       .filter(Boolean),
-  )
-}
+  );
+};
 
 const extractOrigin = (value: string | null): string | null => {
-  if (!value) return null
+  if (!value) return null;
   try {
-    return new URL(value).origin
+    return new URL(value).origin;
   } catch {
-    return null
+    return null;
   }
-}
+};
 
-export const onRequest = async ({ request, env }: { request: Request; env: Env }) => {
-  if (request.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+export const onRequest = async ({
+  request,
+  env,
+}: {
+  request: Request;
+  env: Env;
+}) => {
+  if (request.method !== "GET") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
-    })
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
   }
 
-  const allowedOrigins = getAllowedOrigins(env)
-  const originHeader = extractOrigin(request.headers.get('origin'))
-  const refererOrigin = extractOrigin(request.headers.get('referer'))
-  const sourceOrigin = originHeader ?? refererOrigin
-  const fetchSite = request.headers.get('sec-fetch-site')
+  const allowedOrigins = getAllowedOrigins(env);
+  const originHeader = extractOrigin(request.headers.get("origin"));
+  const refererOrigin = extractOrigin(request.headers.get("referer"));
+  const sourceOrigin = originHeader ?? refererOrigin;
+  const fetchSite = request.headers.get("sec-fetch-site");
 
-  if (!sourceOrigin || !allowedOrigins.has(sourceOrigin) || (fetchSite !== 'same-origin' && fetchSite !== 'same-site')) {
-    return new Response(JSON.stringify({ error: 'Forbidden origin' }), {
+  if (
+    !sourceOrigin ||
+    !allowedOrigins.has(sourceOrigin) ||
+    (fetchSite !== "same-origin" && fetchSite !== "same-site")
+  ) {
+    return new Response(JSON.stringify({ error: "Forbidden origin" }), {
       status: 403,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
-    })
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
   }
 
-  const { searchParams } = new URL(request.url)
-  const playlistId = searchParams.get('playlistId')
+  const { searchParams } = new URL(request.url);
+  const playlistId = searchParams.get("playlistId");
 
   if (!playlistId || !/^[a-zA-Z0-9_-]{10,128}$/.test(playlistId)) {
-    return new Response(JSON.stringify({ error: 'Invalid playlistId' }), {
+    return new Response(JSON.stringify({ error: "Invalid playlistId" }), {
       status: 400,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
-    })
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
   }
 
-  const youtubeUrl = `https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`
+  const youtubeUrl = `https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`;
 
   const response = await fetch(youtubeUrl, {
-    method: 'GET',
+    method: "GET",
     headers: {
-      accept: 'text/html',
-      'user-agent':
-        'Mozilla/5.0 (compatible; PlaylistRankerProxy/1.0; +https://github.com/Asion001/youtube-playlist-ran)',
+      accept: "text/html",
+      "user-agent": USER_AGENT,
     },
-  })
+  });
 
   if (!response.ok) {
-    return new Response(JSON.stringify({ error: 'Failed to fetch playlist' }), {
+    return new Response(JSON.stringify({ error: "Failed to fetch playlist" }), {
       status: response.status,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
-    })
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
   }
 
-  const html = await response.text()
+  const html = await response.text();
 
   return new Response(html, {
     status: 200,
     headers: {
-      'content-type': 'text/html; charset=utf-8',
-      'cache-control': 'public, max-age=300',
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=300",
     },
-  })
-}
+  });
+};

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Video } from '@/lib/types'
 import {
   extractPlaylistId,
@@ -24,6 +24,32 @@ import { toast } from 'sonner'
 
 type AppState = 'input' | 'loading' | 'comparing' | 'results'
 
+type PersistedSession = {
+  state: 'comparing' | 'results'
+  playlistUrl: string
+  videoLimit: string
+  videos: Video[]
+  comparisonCount: number
+  currentPairIds: [string, string] | null
+}
+
+const QUERY_PLAYLIST = 'playlist'
+const QUERY_LIMIT = 'limit'
+const STORAGE_KEY = 'playlist-ranker-session-v1'
+
+function getCurrentPairFromIds(videos: Video[], pairIds: [string, string] | null): [Video, Video] | null {
+  if (!pairIds) return null
+
+  const firstVideo = videos.find((video) => video.id === pairIds[0])
+  const secondVideo = videos.find((video) => video.id === pairIds[1])
+
+  if (!firstVideo || !secondVideo) {
+    return null
+  }
+
+  return [firstVideo, secondVideo]
+}
+
 function App() {
   const [state, setState] = useState<AppState>('input')
   const [playlistUrl, setPlaylistUrl] = useState('')
@@ -34,6 +60,111 @@ function App() {
   const [videos, setVideos] = useState<Video[]>([])
   const [comparisonCount, setComparisonCount] = useState<number>(0)
   const [currentPair, setCurrentPair] = useState<[Video, Video] | null>(null)
+  const [hasHydrated, setHasHydrated] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const initialPlaylist = params.get(QUERY_PLAYLIST) ?? ''
+    const initialLimit = params.get(QUERY_LIMIT) ?? ''
+
+    if (initialPlaylist) {
+      setPlaylistUrl(initialPlaylist)
+    }
+
+    if (initialLimit) {
+      setVideoLimit(initialLimit)
+    }
+
+    const rawSession = window.localStorage.getItem(STORAGE_KEY)
+    if (!rawSession) {
+      setHasHydrated(true)
+      return
+    }
+
+    try {
+      const session: PersistedSession = JSON.parse(rawSession)
+      const hasValidVideos = Array.isArray(session.videos) && session.videos.length >= 2
+      const queryPlaylist = params.get(QUERY_PLAYLIST)
+      const queryLimit = params.get(QUERY_LIMIT)
+      const hasAnyQuery = Boolean(queryPlaylist || queryLimit)
+      const queryMatchesSession =
+        !hasAnyQuery ||
+        ((!queryPlaylist || queryPlaylist === session.playlistUrl) &&
+          (queryLimit ?? '') === session.videoLimit)
+
+      if (!hasValidVideos || !queryMatchesSession) {
+        setHasHydrated(true)
+        return
+      }
+
+      resetComparisonHistory()
+      setPlaylistUrl(session.playlistUrl)
+      setVideoLimit(session.videoLimit)
+      setVideos(session.videos)
+      setComparisonCount(session.comparisonCount)
+
+      const restoredPair = getCurrentPairFromIds(session.videos, session.currentPairIds)
+      if (session.state === 'comparing') {
+        setState('comparing')
+        setCurrentPair(restoredPair ?? calculateNextPair(session.videos))
+      } else {
+        setState('results')
+        setCurrentPair(null)
+      }
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY)
+    } finally {
+      setHasHydrated(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+
+    if (playlistUrl.trim()) {
+      params.set(QUERY_PLAYLIST, playlistUrl.trim())
+    } else {
+      params.delete(QUERY_PLAYLIST)
+    }
+
+    if (videoLimit.trim()) {
+      params.set(QUERY_LIMIT, videoLimit.trim())
+    } else {
+      params.delete(QUERY_LIMIT)
+    }
+
+    const nextSearch = params.toString()
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`
+    window.history.replaceState({}, '', nextUrl)
+  }, [hasHydrated, playlistUrl, videoLimit])
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return
+    }
+
+    if ((state !== 'comparing' && state !== 'results') || videos.length < 2) {
+      if (state === 'input') {
+        window.localStorage.removeItem(STORAGE_KEY)
+      }
+      return
+    }
+
+    const session: PersistedSession = {
+      state,
+      playlistUrl,
+      videoLimit,
+      videos,
+      comparisonCount,
+      currentPairIds: currentPair ? [currentPair[0].id, currentPair[1].id] : null,
+    }
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
+  }, [hasHydrated, state, playlistUrl, videoLimit, videos, comparisonCount, currentPair])
 
   const minimumComparisons = videos && videos.length > 0 ? calculateMinimumComparisons(videos.length) : 0
 
@@ -77,6 +208,7 @@ function App() {
       setVideos(videosToRank)
       setComparisonCount(0)
       setState('comparing')
+      setIsSelecting(false)
 
       const pair = calculateNextPair(videosToRank)
       setCurrentPair(pair)
@@ -104,6 +236,8 @@ function App() {
 
         if (newCount >= minimumComparisons) {
           setState('results')
+          setCurrentPair(null)
+          setIsSelecting(false)
           toast.success('Ranking complete!')
           return updatedVideos
         }
@@ -119,6 +253,7 @@ function App() {
 
   const handleReset = () => {
     resetComparisonHistory()
+    window.localStorage.removeItem(STORAGE_KEY)
     setState('input')
     setPlaylistUrl('')
     setVideoLimit('')
