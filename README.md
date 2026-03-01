@@ -35,13 +35,15 @@ This repository includes:
 
 ### One-time setup
 
-1. Create a Cloudflare Pages project named `youtube-playlist-ran`.
+1. Create a Cloudflare Pages project (name can match this repo, or any existing Pages project name).
 2. In GitHub repository secrets, add:
    - `CLOUDFLARE_API_TOKEN` (Pages edit permission)
    - `CLOUDFLARE_ACCOUNT_ID`
-3. Set `ALLOWED_ORIGINS` in `wrangler.toml` to your production page origins.
+3. In GitHub repository variables, optionally add:
+   - `CLOUDFLARE_PROJECT_NAME` (required if your Pages project name differs from the repository name)
+4. Set `ALLOWED_ORIGINS` in `wrangler.toml` to your production page origins.
 
 ### CI/CD behavior
 
 - Pull requests to `main` run `npm ci` and `npm run build`.
-- Pushes to `main` run build and deploy `dist` + `functions/` to Cloudflare Pages.
+- Pushes to `main` run build and deploy `dist` to Cloudflare Pages.

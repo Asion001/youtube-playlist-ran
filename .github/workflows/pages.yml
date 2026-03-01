@@ -54,7 +54,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: youtube-playlist-ran
+          projectName: ${{ vars.CLOUDFLARE_PROJECT_NAME || github.event.repository.name }}
           directory: dist
-          functionsDirectory: functions
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
