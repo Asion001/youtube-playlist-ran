@@ -31,11 +31,12 @@ export function VideoCard({ video, label, onSelect, isSelecting }: VideoCardProp
       <Card className="overflow-hidden border-2 flex flex-col flex-1">
         <div className="relative aspect-video bg-muted overflow-hidden">
           <iframe
-            src={`https://www.youtube.com/embed/${video.id}`}
+            src={`https://www.youtube.com/embed/${video.id}?rel=0&modestbranding=1&controls=1`}
             title={video.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             className="w-full h-full"
+            loading="lazy"
           />
         </div>
 
