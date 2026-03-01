@@ -49,6 +49,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Include Pages Functions in deploy artifact
+        run: |
+          mkdir -p dist/functions
+          cp -R functions/. dist/functions/
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:

@@ -46,4 +46,4 @@ This repository includes:
 ### CI/CD behavior
 
 - Pull requests to `main` run `npm ci` and `npm run build`.
-- Pushes to `main` run build and deploy `dist` to Cloudflare Pages.
+- Pushes to `main` run build, copy `functions/` into `dist/functions/`, and deploy to Cloudflare Pages.
