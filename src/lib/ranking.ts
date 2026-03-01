@@ -15,7 +15,7 @@ export function extractPlaylistId(url: string): string | null {
 }
 
 export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> {
-  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://www.youtube.com/playlist?list=${playlistId}`)}`
+  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.youtube.com/playlist?list=${playlistId}`)}`
   
   try {
     const response = await fetch(proxyUrl, {
