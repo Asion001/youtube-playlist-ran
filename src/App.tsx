@@ -26,7 +26,7 @@ type AppState = 'input' | 'loading' | 'comparing' | 'results'
 
 type PersistedSession = {
   state: 'comparing' | 'results'
-  playlistUrl: string
+  playlistId: string
   videoLimit: string
   videos: Video[]
   comparisonCount: number
@@ -50,6 +50,21 @@ function getCurrentPairFromIds(videos: Video[], pairIds: [string, string] | null
   return [firstVideo, secondVideo]
 }
 
+function getPlaylistIdFromInput(input: string): string | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+
+  if (/^[a-zA-Z0-9_-]{10,128}$/.test(trimmed)) {
+    return trimmed
+  }
+
+  return extractPlaylistId(trimmed)
+}
+
+function toPlaylistUrl(playlistId: string): string {
+  return `https://www.youtube.com/playlist?list=${playlistId}`
+}
+
 function App() {
   const [state, setState] = useState<AppState>('input')
   const [playlistUrl, setPlaylistUrl] = useState('')
@@ -64,11 +79,11 @@ function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const initialPlaylist = params.get(QUERY_PLAYLIST) ?? ''
+    const initialPlaylistId = params.get(QUERY_PLAYLIST) ?? ''
     const initialLimit = params.get(QUERY_LIMIT) ?? ''
 
-    if (initialPlaylist) {
-      setPlaylistUrl(initialPlaylist)
+    if (initialPlaylistId) {
+      setPlaylistUrl(toPlaylistUrl(initialPlaylistId))
     }
 
     if (initialLimit) {
@@ -84,13 +99,12 @@ function App() {
     try {
       const session: PersistedSession = JSON.parse(rawSession)
       const hasValidVideos = Array.isArray(session.videos) && session.videos.length >= 2
-      const queryPlaylist = params.get(QUERY_PLAYLIST)
-      const queryLimit = params.get(QUERY_LIMIT)
-      const hasAnyQuery = Boolean(queryPlaylist || queryLimit)
+      const queryPlaylistId = params.get(QUERY_PLAYLIST) ?? ''
+      const queryLimit = params.get(QUERY_LIMIT) ?? ''
       const queryMatchesSession =
-        !hasAnyQuery ||
-        ((!queryPlaylist || queryPlaylist === session.playlistUrl) &&
-          (queryLimit ?? '') === session.videoLimit)
+        queryPlaylistId.length > 0 &&
+        queryPlaylistId === session.playlistId &&
+        queryLimit === session.videoLimit
 
       if (!hasValidVideos || !queryMatchesSession) {
         setHasHydrated(true)
@@ -98,7 +112,7 @@ function App() {
       }
 
       resetComparisonHistory()
-      setPlaylistUrl(session.playlistUrl)
+      setPlaylistUrl(toPlaylistUrl(session.playlistId))
       setVideoLimit(session.videoLimit)
       setVideos(session.videos)
       setComparisonCount(session.comparisonCount)
@@ -124,9 +138,10 @@ function App() {
     }
 
     const params = new URLSearchParams(window.location.search)
+    const playlistId = getPlaylistIdFromInput(playlistUrl)
 
-    if (playlistUrl.trim()) {
-      params.set(QUERY_PLAYLIST, playlistUrl.trim())
+    if (playlistId) {
+      params.set(QUERY_PLAYLIST, playlistId)
     } else {
       params.delete(QUERY_PLAYLIST)
     }
@@ -154,9 +169,14 @@ function App() {
       return
     }
 
+    const playlistId = getPlaylistIdFromInput(playlistUrl)
+    if (!playlistId) {
+      return
+    }
+
     const session: PersistedSession = {
       state,
-      playlistUrl,
+      playlistId,
       videoLimit,
       videos,
       comparisonCount,
@@ -166,11 +186,38 @@ function App() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
   }, [hasHydrated, state, playlistUrl, videoLimit, videos, comparisonCount, currentPair])
 
+  useEffect(() => {
+    if (!hasHydrated || state !== 'input') {
+      return
+    }
+
+    const rawSession = window.localStorage.getItem(STORAGE_KEY)
+    if (!rawSession) {
+      return
+    }
+
+    try {
+      const session: PersistedSession = JSON.parse(rawSession)
+      const draftPlaylistId = getPlaylistIdFromInput(playlistUrl)
+      const draftLimit = videoLimit.trim()
+      const matchesSavedSession =
+        !!draftPlaylistId &&
+        draftPlaylistId === session.playlistId &&
+        draftLimit === session.videoLimit
+
+      if (!matchesSavedSession) {
+        window.localStorage.removeItem(STORAGE_KEY)
+      }
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY)
+    }
+  }, [hasHydrated, state, playlistUrl, videoLimit])
+
   const minimumComparisons = videos && videos.length > 0 ? calculateMinimumComparisons(videos.length) : 0
 
   const handleSubmit = async () => {
     setError(null)
-    const playlistId = extractPlaylistId(playlistUrl)
+    const playlistId = getPlaylistIdFromInput(playlistUrl)
 
     if (!playlistId) {
       setError('Invalid YouTube playlist URL. Please check the URL and try again.')
@@ -269,7 +316,7 @@ function App() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,oklch(0.25_0.08_250),transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,oklch(0.20_0.10_290),transparent_40%)]" />
       
-      <div className="relative z-10 container mx-auto px-6 py-8 md:px-12 md:py-12">
+      <div className="relative z-10 mx-auto px-6 py-8 md:px-12 md:py-12">
         <header className="text-center space-y-2 mb-12">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight flex items-center justify-center gap-3">
             <Lightning size={40} weight="fill" className="text-accent" />
