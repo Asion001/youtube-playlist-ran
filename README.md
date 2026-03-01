@@ -20,24 +20,26 @@ npm run build
 Playlist HTML is fetched through a Cloudflare Pages Function at:
 
 - `functions/api/proxy.ts`
+- Cloudflare Worker equivalent: `workers/proxy.js` (deployed via Wrangler)
 - Access is restricted to configured page origins via `ALLOWED_ORIGINS`.
 
 The frontend uses `/api/proxy?playlistId=...` by default, and you can override it with:
 
 - `VITE_PROXY_URL`
 
-## Deploy to Cloudflare Pages
+## Deploy to Cloudflare Pages and Workers
 
 This repository includes:
 
 - `wrangler.toml` with Pages output configured as `dist`
-- GitHub Actions workflow at `.github/workflows/pages.yml` for build + deploy
+- `wrangler.worker.toml` for Worker deployment config
+- GitHub Actions workflow at `.github/workflows/pages.yml` for build + deploy (via `cloudflare/wrangler-action`)
 
 ### One-time setup
 
 1. Create a Cloudflare Pages project (name can match this repo, or any existing Pages project name).
 2. In GitHub repository secrets, add:
-   - `CLOUDFLARE_API_TOKEN` (Pages edit permission)
+   - `CLOUDFLARE_API_TOKEN` (Pages + Workers edit permission)
    - `CLOUDFLARE_ACCOUNT_ID`
 3. In GitHub repository variables, optionally add:
    - `CLOUDFLARE_PROJECT_NAME` (required if your Pages project name differs from the repository name)
@@ -46,4 +48,4 @@ This repository includes:
 ### CI/CD behavior
 
 - Pull requests to `main` run `npm ci` and `npm run build`.
-- Pushes to `main` run build, copy `functions/` into `dist/functions/`, and deploy to Cloudflare Pages.
+- Pushes to `main` run build, copy `functions/` into `dist/functions/`, deploy to Cloudflare Pages via Wrangler, and deploy to Cloudflare Workers via Wrangler.
