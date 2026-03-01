@@ -15,7 +15,8 @@ export function extractPlaylistId(url: string): string | null {
 }
 
 export async function fetchPlaylistVideos(playlistId: string): Promise<Video[]> {
-  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.youtube.com/playlist?list=${playlistId}`)}`
+  const proxyBaseUrl = import.meta.env.VITE_PROXY_URL || '/api/proxy'
+  const proxyUrl = `${proxyBaseUrl}?playlistId=${encodeURIComponent(playlistId)}`
   
   try {
     const response = await fetch(proxyUrl, {

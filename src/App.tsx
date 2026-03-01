@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useKV } from '@github/spark/hooks'
 import { Video } from '@/lib/types'
 import {
   extractPlaylistId,
@@ -32,8 +31,8 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [isSelecting, setIsSelecting] = useState(false)
 
-  const [videos, setVideos] = useKV<Video[]>('playlist-videos', [])
-  const [comparisonCount, setComparisonCount] = useKV<number>('comparison-count', 0)
+  const [videos, setVideos] = useState<Video[]>([])
+  const [comparisonCount, setComparisonCount] = useState<number>(0)
   const [currentPair, setCurrentPair] = useState<[Video, Video] | null>(null)
 
   const minimumComparisons = videos && videos.length > 0 ? calculateMinimumComparisons(videos.length) : 0
@@ -88,7 +87,7 @@ function App() {
   }
 
   const handleChoice = (winnerId: string) => {
-    if (!currentPair || isSelecting || !videos || comparisonCount === undefined) return
+    if (!currentPair || isSelecting) return
 
     setIsSelecting(true)
 
@@ -99,7 +98,7 @@ function App() {
         if (!currentVideos) return []
         
         const updatedVideos = updateScores(currentVideos, winnerId, loserId)
-        const newCount = (comparisonCount ?? 0) + 1
+        const newCount = comparisonCount + 1
 
         setComparisonCount(newCount)
 
@@ -228,7 +227,7 @@ function App() {
 
           {state === 'comparing' && currentPair && (
             <div className="space-y-8">
-              <ComparisonProgress current={comparisonCount ?? 0} total={minimumComparisons} />
+              <ComparisonProgress current={comparisonCount} total={minimumComparisons} />
 
               <div className="text-center">
                 <h2 className="text-2xl font-semibold mb-2">Which video is better?</h2>
