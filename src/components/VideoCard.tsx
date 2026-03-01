@@ -2,6 +2,7 @@ import { Video } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
+import { Play } from '@phosphor-icons/react'
 
 interface VideoCardProps {
   video: Video
@@ -29,16 +30,23 @@ export function VideoCard({ video, label, onSelect, isSelecting }: VideoCardProp
       </div>
 
       <Card className="overflow-hidden border-2 flex flex-col flex-1">
-        <div className="relative aspect-video bg-muted overflow-hidden">
-          <iframe
-            src={`https://www.youtube.com/embed/${video.id}?rel=0&modestbranding=1&controls=1`}
-            title={video.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            className="w-full h-full"
-            loading="lazy"
+        <a
+          href={`https://www.youtube.com/watch?v=${video.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="relative aspect-video bg-muted overflow-hidden group block"
+        >
+          <img
+            src={video.thumbnail}
+            alt={video.title}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
-        </div>
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center transition-colors group-hover:bg-black/50">
+            <div className="bg-primary/90 rounded-full p-4 transition-transform duration-300 group-hover:scale-110">
+              <Play size={32} weight="fill" className="text-primary-foreground" />
+            </div>
+          </div>
+        </a>
 
         <div className="p-4">
           <Button
