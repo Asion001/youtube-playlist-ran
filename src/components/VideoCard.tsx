@@ -18,7 +18,7 @@ export function VideoCard({ video, label, onSelect, isSelecting }: VideoCardProp
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="flex-1 flex flex-col"
+      className="w-full md:w-[45vw] flex flex-col"
     >
       <div className="flex items-center gap-3 mb-4">
         <div className="bg-primary text-primary-foreground font-bold text-lg w-9 h-9 rounded-full flex items-center justify-center shrink-0">

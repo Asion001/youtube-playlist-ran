@@ -227,7 +227,7 @@ function App() {
                 <p className="text-muted-foreground">Click on your preferred video</p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4 md:gap-8">
+              <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center justify-center">
                 <AnimatePresence mode="wait">
                   <VideoCard
                     key={currentPair[0].id}
