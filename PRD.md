@@ -13,11 +13,11 @@ This is a focused tool with a clear multi-step workflow: URL input → video loa
 ## Essential Features
 
 ### Playlist URL Input
-- **Functionality**: Accepts YouTube playlist URLs and extracts video data
-- **Purpose**: Entry point to start the ranking process
-- **Trigger**: User pastes URL into input field and clicks submit
-- **Progression**: Empty state → URL input → validation → video loading → comparison view
-- **Success criteria**: Successfully parses playlist ID, fetches all videos from playlist, displays error for invalid URLs
+- **Functionality**: Accepts YouTube playlist URLs, extracts video data, and optionally limits the number of videos with shuffle
+- **Purpose**: Entry point to start the ranking process with user control over scope
+- **Trigger**: User pastes URL into input field, optionally sets video limit, and clicks submit
+- **Progression**: Empty state → URL input → optional limit input → validation → video loading → shuffle if limited → comparison view
+- **Success criteria**: Successfully parses playlist ID, fetches all videos from playlist, shuffles and limits videos if specified, displays error for invalid URLs or limits
 
 ### Pairwise Video Comparison
 - **Functionality**: Presents two videos side-by-side for user to choose their preference
@@ -45,7 +45,8 @@ This is a focused tool with a clear multi-step workflow: URL input → video loa
 - **Invalid URL**: Show friendly error message prompting user to check the URL format
 - **Private/Deleted Playlist**: Display error explaining the playlist is inaccessible
 - **Single Video Playlist**: Skip comparison, show message that ranking requires multiple videos
-- **Very Large Playlists**: Warn user about time commitment, offer option to rank subset
+- **Very Large Playlists**: Allow user to limit number of videos with random shuffle
+- **Invalid Video Limit**: Show error if limit is less than 2 or not a valid number
 - **Identical Rankings**: Handle ties gracefully with equal positioning
 - **Interrupted Session**: Auto-save progress using KV store, allow resume on return
 
@@ -116,6 +117,7 @@ Animations should emphasize the decisive moment of choice with quick, snappy tra
   - Trophy (winner/final ranking)
   - ArrowCounterClockwise (reset)
   - Lightning (for quick comparison emphasis)
+  - Shuffle (for video randomization indicator)
   
 - **Spacing**: 
   - Container padding: px-6 py-8 (md:px-12 md:py-12)

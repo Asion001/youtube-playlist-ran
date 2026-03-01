@@ -8,16 +8,18 @@ import {
   updateScores,
   calculateMinimumComparisons,
   getRankedVideos,
+  shuffleArray,
 } from '@/lib/ranking'
 import { VideoCard } from '@/components/VideoCard'
 import { ComparisonProgress } from '@/components/ComparisonProgress'
 import { RankingResults } from '@/components/RankingResults'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AnimatePresence } from 'framer-motion'
-import { ArrowCounterClockwise, Lightning } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, Lightning, Shuffle } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 
 type AppState = 'input' | 'loading' | 'comparing' | 'results'
@@ -25,6 +27,7 @@ type AppState = 'input' | 'loading' | 'comparing' | 'results'
 function App() {
   const [state, setState] = useState<AppState>('input')
   const [playlistUrl, setPlaylistUrl] = useState('')
+  const [videoLimit, setVideoLimit] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [isSelecting, setIsSelecting] = useState(false)
 
@@ -54,14 +57,28 @@ function App() {
         return
       }
 
-      setVideos(fetchedVideos)
+      let videosToRank = fetchedVideos
+      const limit = parseInt(videoLimit)
+      
+      if (!isNaN(limit) && limit > 0 && limit < fetchedVideos.length) {
+        if (limit < 2) {
+          setError('Video limit must be at least 2.')
+          setState('input')
+          return
+        }
+        videosToRank = shuffleArray(fetchedVideos).slice(0, limit)
+        toast.success(`Loaded and shuffled ${videosToRank.length} videos from ${fetchedVideos.length} total!`)
+      } else {
+        videosToRank = shuffleArray(fetchedVideos)
+        toast.success(`Loaded and shuffled ${videosToRank.length} videos!`)
+      }
+
+      setVideos(videosToRank)
       setComparisonCount(0)
       setState('comparing')
 
-      const pair = calculateNextPair(fetchedVideos)
+      const pair = calculateNextPair(videosToRank)
       setCurrentPair(pair)
-      
-      toast.success(`Loaded ${fetchedVideos.length} videos!`)
     } catch (err) {
       setError('Failed to load playlist. Please check the URL and try again.')
       setState('input')
@@ -102,6 +119,7 @@ function App() {
   const handleReset = () => {
     setState('input')
     setPlaylistUrl('')
+    setVideoLimit('')
     setVideos([])
     setComparisonCount(0)
     setCurrentPair(null)
@@ -148,6 +166,26 @@ function App() {
                   </Button>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="video-limit" className="text-sm flex items-center gap-2">
+                    <Shuffle size={16} className="text-accent" />
+                    Limit number of videos (optional)
+                  </Label>
+                  <Input
+                    id="video-limit"
+                    type="number"
+                    placeholder="Leave empty to rank all videos"
+                    value={videoLimit}
+                    onChange={(e) => setVideoLimit(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                    min="2"
+                    className="h-12 text-base"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Videos will be randomly shuffled if a limit is set
+                  </p>
+                </div>
+
                 {error && (
                   <Alert variant="destructive">
                     <AlertDescription>{error}</AlertDescription>
@@ -159,7 +197,8 @@ function App() {
                 <h3 className="font-semibold text-lg">How it works</h3>
                 <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
                   <li>Paste a YouTube playlist URL above</li>
-                  <li>We'll load all videos from the playlist</li>
+                  <li>Optionally limit the number of videos to rank</li>
+                  <li>We'll load and shuffle the videos</li>
                   <li>Choose between pairs of videos (A or B)</li>
                   <li>After enough comparisons, see your final ranking</li>
                 </ol>
