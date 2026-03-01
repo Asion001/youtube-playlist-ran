@@ -7,7 +7,8 @@ import createIconImportProxy from "@github/spark/vitePhosphorIconProxyPlugin";
 import { resolve } from 'path'
 
 const projectRoot = process.env.PROJECT_ROOT || import.meta.dirname
-const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1]
+const repositoryNameParts = process.env.GITHUB_REPOSITORY?.split('/') ?? []
+const repositoryName = repositoryNameParts.length === 2 ? repositoryNameParts[1] : undefined
 const basePath = repositoryName && !repositoryName.endsWith('.github.io') ? `/${repositoryName}/` : '/'
 
 // https://vite.dev/config/
