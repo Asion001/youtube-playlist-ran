@@ -51,8 +51,10 @@ jobs:
 
       - name: Include Pages Functions in deploy artifact
         run: |
-          mkdir -p dist/functions
-          cp -R functions/. dist/functions/
+          if [ -d functions ]; then
+            mkdir -p dist/functions
+            cp -R functions/. dist/functions/
+          fi
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
